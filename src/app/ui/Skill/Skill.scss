@@ -1,0 +1,63 @@
+@import '../../sass/default/variable';
+
+.st-skill-title {
+  font-size: 34px;
+  font-weight: 500;
+  line-height: 1.25em;
+  margin-bottom: 22px;
+}
+
+.st-skill-subtitle {
+  color: $body-text;
+}
+
+.st-spec-list {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid $border;
+}
+
+.st-spec-row {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  padding: 15px 2px;
+  border-bottom: 1px solid $border;
+}
+
+.st-spec-key {
+  flex: 0 0 150px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: $muted;
+}
+
+.st-spec-value {
+  margin: 0;
+  font-size: 16px;
+  color: $ink;
+  font-family: 'Open Sans', sans-serif;
+}
+
+@media screen and (max-width: 991px) {
+  .st-skill-title {
+    font-size: 26px;
+  }
+
+  .st-spec-row {
+    flex-direction: column;
+    gap: 5px;
+    padding: 13px 2px;
+  }
+
+  .st-spec-key {
+    flex: none;
+  }
+
+  .st-spec-value {
+    font-size: 15px;
+  }
+}

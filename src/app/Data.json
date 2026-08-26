@@ -1,0 +1,184 @@
+{
+  "heroData": {
+    "homeOneHero": {
+      "title": "Grace <br /> Mussimbi",
+      "subTitle": "Hello, I’m",
+      "designation": "IT Support & Help Desk · Bilingual FR/EN"
+    }
+  },
+  "aboutData": {
+    "imgLink": "/images/section/hero-topology.png",
+    "title": "Grace Mussimbi",
+    "subtitle": "IT Support & Help Desk",
+    "text": "CompTIA Security+ certified technical professional, fluent in French and English, with experience in ticket-driven environments and front-line customer support.\n\nI’m building hands-on IT infrastructure and support skills through my Windows Server and Active Directory home lab, with a focus on configuration, troubleshooting, verification, and clear documentation.\n\nMy previous technical work involved investigating issues, working through Jira and support queues, debugging across platforms and data sources, and documenting solutions clearly.",
+    "details": [
+      {
+        "title": "Location",
+        "info": "Stoney Creek, Ontario"
+      },
+      {
+        "title": "Email",
+        "info": "mussimbigrace@gmail.com"
+      },
+      {
+        "title": "Languages",
+        "info": "French and English, fluent in both"
+      },
+      {
+        "title": "Certification",
+        "info": "CompTIA Security+ (SY0-701)"
+      },
+      {
+        "title": "Lab",
+        "info": "Windows Server 2025, Active Directory, VMware"
+      }
+    ]
+  },
+  "serviceData": {
+    "services": [
+      {
+        "imgLink": "./images/icon/it-ad.svg",
+        "title": "Active Directory & Windows Server",
+        "text": "Windows Server 2025 in a virtualised lab: hostname standards, static addressing, and DNS prepared for a domain controller promotion.",
+        "effect": "zoom-out-up",
+        "duration": "500",
+        "delay": "200"
+      },
+      {
+        "imgLink": "./images/icon/it-client.svg",
+        "title": "Windows 11 Client Support",
+        "text": "Workstation naming, network profile behaviour, and the Windows Defender Firewall rules that decide whether a machine answers at all.",
+        "effect": "zoom-out-up",
+        "duration": "500",
+        "delay": "300"
+      },
+      {
+        "imgLink": "./images/icon/it-network.svg",
+        "title": "Networking & Connectivity",
+        "text": "TCP/IP, subnetting, static vs. DHCP addressing, default gateways and DNS resolution, diagnosed with ping, ipconfig, arp and tracert.",
+        "effect": "zoom-out-up",
+        "duration": "500",
+        "delay": "400"
+      },
+      {
+        "imgLink": "./images/icon/it-shell.svg",
+        "title": "PowerShell & Scripting",
+        "text": "Configuration and verification from an elevated session rather than the GUI: New-NetIPAddress, Set-DnsClientServerAddress, Rename-Computer.",
+        "effect": "zoom-out-up",
+        "duration": "500",
+        "delay": "500"
+      },
+      {
+        "imgLink": "./images/icon/it-cloud.svg",
+        "title": "Microsoft 365 Administration",
+        "text": "Day to day Microsoft 365 and Office 365 support, plus SQL and scripting experience carried over from four years of production email work.",
+        "effect": "zoom-out-up",
+        "duration": "500",
+        "delay": "600"
+      },
+      {
+        "imgLink": "./images/icon/it-ticket.svg",
+        "title": "Ticketing & Documentation",
+        "text": "Intake, triage and escalation through Jira and internal help desk systems, with written incident records and QA verification at each step.",
+        "effect": "zoom-out-up",
+        "duration": "500",
+        "delay": "700"
+      }
+    ]
+  },
+  "skillData": {
+    "title": "The environment these writeups were produced in.",
+    "text": "Everything documented on this site was built on my own hardware and verified before it was written down. No percentage bars, just the environment itself and the tools used to build it.",
+    "specs": [
+      {
+        "title": "Certification",
+        "value": "CompTIA Security+ (SY0-701), August 2026"
+      },
+      {
+        "title": "Hypervisor",
+        "value": "VMware Workstation"
+      },
+      {
+        "title": "Server",
+        "value": "Windows Server 2025 (DC01)"
+      },
+      {
+        "title": "Clients",
+        "value": "Windows 11 Pro ×2 (CLIENT01, CLIENT02)"
+      },
+      {
+        "title": "Network",
+        "value": "192.168.11.0/24, VMnet8 NAT, gateway .2"
+      },
+      {
+        "title": "Tooling",
+        "value": "PowerShell, ipconfig, ping, arp, Defender Firewall"
+      },
+      {
+        "title": "Scripting",
+        "value": "PowerShell, SQL, JavaScript, HTML, CSS"
+      },
+      {
+        "title": "Platforms",
+        "value": "Microsoft 365, Jira, Salesforce Marketing Cloud"
+      }
+    ]
+  },
+  "portfolioData": {
+    "portfolioItems": [
+      {
+        "imgLink": "./images/portfolio/lab01.png",
+        "imgLinkLg": "./images/portfolio/lab01.png",
+        "href": "/labs/lab01",
+        "title": "Server Naming",
+        "subTitle": "DC01 · Windows Server 2025",
+        "effect": "fade-up",
+        "duration": "500",
+        "delay": "200"
+      },
+      {
+        "imgLink": "./images/portfolio/lab02.png",
+        "imgLinkLg": "./images/portfolio/lab02.png",
+        "href": "/labs/lab02",
+        "title": "Client Naming",
+        "subTitle": "CLIENT01 & CLIENT02 · Windows 11 Pro",
+        "effect": "fade-up",
+        "duration": "500",
+        "delay": "300"
+      },
+      {
+        "imgLink": "./images/portfolio/lab03.png",
+        "imgLinkLg": "./images/portfolio/lab03.png",
+        "href": "/labs/lab03",
+        "title": "Static IPv4 Configuration",
+        "subTitle": "DC01 · 192.168.11.10/24",
+        "effect": "fade-up",
+        "duration": "500",
+        "delay": "400"
+      },
+      {
+        "imgLink": "./images/portfolio/lab04.png",
+        "imgLinkLg": "./images/portfolio/lab04.png",
+        "href": "/labs/lab04",
+        "title": "Connectivity Verification & Troubleshooting",
+        "subTitle": "Firewall profiles · ARP cache",
+        "effect": "fade-up",
+        "duration": "500",
+        "delay": "500"
+      }
+    ]
+  },
+  "contactData": {
+    "formTitle": "Send me a message",
+    "title": "Contact",
+    "subTitle": "Find me here",
+    "text": ""
+  },
+  "socialData": [
+    {
+      "icon": "linkedin",
+      "title": "LinkedIn",
+      "link": "https://www.linkedin.com/in/grace-mussimbi-a12173214/"
+    }
+  ]
+}

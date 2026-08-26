@@ -1,0 +1,39 @@
+// ---------------------------------------------------------------
+// Light theme palette
+// Contrast ratios noted against #ffffff (WCAG AA needs 4.5:1 for
+// body text, 3:1 for large text and UI boundaries)
+// ---------------------------------------------------------------
+
+$ink: #171b24; // headings               14.6:1
+$body-text: #4a5261; // paragraphs        8.1:1
+$muted: #6b7280; // meta, captions        5.0:1
+$accent: #1a4fd6; // links, buttons       6.7:1
+$accent-dark: #1540ad; // hover
+$trim: #fec544; // yellow, decorative use only
+$on-accent: #ffffff; // text on accent fills
+
+$page-bg: #ffffff;
+$surface: #f5f7fa; // cards
+$surface-2: #eef1f6; // alternating bands
+$ghost: #e9edf4; // oversized watermark headings
+$border: #e2e6ec;
+$border-2: #d3dae4;
+$border-strong: #8b95a6; // form field outlines, 3.0:1 on white
+
+// ---------------------------------------------------------------
+// Legacy names kept so existing component rules keep resolving.
+// Semantics are remapped for the light theme; the call sites where
+// the old meaning no longer fits are corrected in the component
+// files themselves.
+// ---------------------------------------------------------------
+
+$base-color1: $accent; // was #fec544 accent
+$base-color2: $body-text; // was #a9adb8 body copy
+$base-color3: $ink; // was #fdfeff headings
+$base-color4: $border; // was #232935 hairline borders
+
+$dark-color1: $ghost; // was #151b29
+$dark-color2: $page-bg; // was #070d1b
+$dark-color3: $page-bg; // was #0a101e page background
+$dark-color4: $surface; // was #101624 card background
+$dark-color5: $border-2; // was #3f4551 dividers

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 44" width="300" height="44" role="img" aria-label="Grace Mussimbi">
+  <rect x="0" y="4" width="36" height="36" rx="9" fill="#1a4fd6"/>
+  <text x="18" y="28.5" text-anchor="middle" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif"
+        font-size="16" font-weight="700" fill="#ffffff" letter-spacing="0.5">GM</text>
+  <text x="48" y="28" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif"
+        font-size="20" font-weight="700" fill="#171b24" letter-spacing="-0.3">Grace Mussimbi</text>
+  <circle cx="219" cy="26" r="3" fill="#fec544"/>
+</svg>

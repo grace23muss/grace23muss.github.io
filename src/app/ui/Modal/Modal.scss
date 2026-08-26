@@ -1,0 +1,11 @@
+@import "../../sass/default/variable";
+
+.modal-title,
+.modal-subtitle {
+  color: $ink;
+}
+
+.modal-body img {
+  width: 100%;
+  margin-bottom: 20px;
+}
