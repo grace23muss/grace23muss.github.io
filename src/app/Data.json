@@ -30,7 +30,7 @@
       },
       {
         "title": "Lab",
-        "info": "Windows Server 2025, Active Directory, VMware"
+        "info": "Windows Server 2025, Windows 11, VMware"
       }
     ]
   },
@@ -38,8 +38,8 @@
     "services": [
       {
         "imgLink": "./images/icon/it-ad.svg",
-        "title": "Active Directory & Windows Server",
-        "text": "Windows Server 2025 in a virtualised lab: hostname standards, static addressing, and DNS prepared for a domain controller promotion.",
+        "title": "Windows Server Infrastructure",
+        "text": "Windows Server 2025 in a virtualised lab: hostname standards, static addressing, and DNS client settings prepared for a future domain controller promotion.",
         "effect": "zoom-out-up",
         "duration": "500",
         "delay": "200"
@@ -47,7 +47,7 @@
       {
         "imgLink": "./images/icon/it-client.svg",
         "title": "Windows 11 Client Support",
-        "text": "Workstation naming, network profile behaviour, and the Windows Defender Firewall rules that decide whether a machine answers at all.",
+        "text": "Workstation naming, network profile behaviour, and the Windows Defender Firewall rules affecting ICMP connectivity.",
         "effect": "zoom-out-up",
         "duration": "500",
         "delay": "300"
@@ -62,7 +62,7 @@
       },
       {
         "imgLink": "./images/icon/it-shell.svg",
-        "title": "PowerShell & Scripting",
+        "title": "PowerShell & Command-Line Configuration",
         "text": "Configuration and verification from an elevated session rather than the GUI: New-NetIPAddress, Set-DnsClientServerAddress, Rename-Computer.",
         "effect": "zoom-out-up",
         "duration": "500",
@@ -70,8 +70,8 @@
       },
       {
         "imgLink": "./images/icon/it-cloud.svg",
-        "title": "Microsoft 365 Administration",
-        "text": "Day to day Microsoft 365 and Office 365 support, plus SQL and scripting experience carried over from four years of production email work.",
+        "title": "Microsoft 365 End-User Support",
+        "text": "Day-to-day Microsoft 365 and Office 365 end-user support, plus SQL and scripting experience carried over from previous production email roles.",
         "effect": "zoom-out-up",
         "duration": "500",
         "delay": "600"
@@ -79,7 +79,7 @@
       {
         "imgLink": "./images/icon/it-ticket.svg",
         "title": "Ticketing & Documentation",
-        "text": "Intake, triage and escalation through Jira and internal help desk systems, with written incident records and QA verification at each step.",
+        "text": "Ticket intake and resolution through internal help desk systems, with request and bug tracking in Jira, documented troubleshooting, QA verification, and escalation when required.",
         "effect": "zoom-out-up",
         "duration": "500",
         "delay": "700"
@@ -115,7 +115,7 @@
         "value": "PowerShell, ipconfig, ping, arp, Defender Firewall"
       },
       {
-        "title": "Scripting",
+        "title": "Languages & Querying",
         "value": "PowerShell, SQL, JavaScript, HTML, CSS"
       },
       {
