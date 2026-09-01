@@ -23,7 +23,7 @@ const PortfolioSection = ({ data }) => {
 
   // Load Items
   const { portfolioItems } = data;
-  const itemsPerPage = 6;
+  const itemsPerPage = 9;
   const [visibleItems, setVisibleItems] = useState(
     portfolioItems.slice(0, itemsPerPage),
   );
