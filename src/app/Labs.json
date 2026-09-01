@@ -1223,6 +1223,544 @@
           ]
         }
       ]
+    },
+    {
+      "slug": "lab07",
+      "number": "07",
+      "title": "OUs, Users, Groups & Remote Administration",
+      "subTitle": "corp.gracelab.com · AGDLP · RSAT",
+      "date": "1 September 2026",
+      "status": "Completed",
+      "task": "Build a custom Organizational Unit structure for user, group and workstation administration, create departmental accounts and role based security groups, apply NTFS permissions to a shared folder using the AGDLP model, relocate the client computer objects and redirect where future domain joins land, then administer the directory from CLIENT01 through RSAT rather than from the domain controller.",
+      "config": [
+        {
+          "key": "Domain",
+          "value": "corp.gracelab.com"
+        },
+        {
+          "key": "NetBIOS name",
+          "value": "CORP"
+        },
+        {
+          "key": "Domain controller",
+          "value": "DC01 · 192.168.11.10"
+        },
+        {
+          "key": "Management workstation",
+          "value": "CLIENT01 · 192.168.11.130"
+        },
+        {
+          "key": "Second workstation",
+          "value": "CLIENT02 · 192.168.11.131"
+        },
+        {
+          "key": "Top level OU",
+          "value": "GraceLab"
+        },
+        {
+          "key": "Departmental OUs",
+          "value": "IT, HR, Sales, beneath GraceLab › Users"
+        },
+        {
+          "key": "Other OUs",
+          "value": "Workstations, Groups, Disabled Users"
+        },
+        {
+          "key": "Global groups",
+          "value": "GG_IT, GG_HR, GG_Sales"
+        },
+        {
+          "key": "Domain local group",
+          "value": "DL_SalesData_Modify"
+        },
+        {
+          "key": "Shared folder",
+          "value": "C:\\Shares\\SalesData on DC01"
+        }
+      ],
+      "sections": [
+        {
+          "heading": "Method",
+          "blocks": [
+            {
+              "type": "subheading",
+              "text": "Reviewing the default structure"
+            },
+            {
+              "type": "p",
+              "text": "Active Directory Users and Computers was opened on DC01 and Advanced Features was enabled, which exposes the Object and Security tabs used later in this lab and reveals system objects hidden by default. The domain was reviewed before anything was created."
+            },
+            {
+              "type": "table",
+              "head": [
+                "Object",
+                "Type"
+              ],
+              "rows": [
+                [
+                  "Computers",
+                  "Container"
+                ],
+                [
+                  "Users",
+                  "Container"
+                ],
+                [
+                  "ForeignSecurityPrincipals",
+                  "Container"
+                ],
+                [
+                  "Managed Service Accounts",
+                  "Container"
+                ],
+                [
+                  "Domain Controllers",
+                  "Organizational Unit"
+                ],
+                [
+                  "Builtin",
+                  "builtinDomain"
+                ]
+              ]
+            },
+            {
+              "type": "p",
+              "text": "The distinction is not presentational. A container cannot be the target of a Group Policy link and cannot receive delegated administrative control, so a custom Organizational Unit hierarchy was created rather than leaving objects in the default containers."
+            },
+            {
+              "type": "subheading",
+              "text": "Organizational Unit structure"
+            },
+            {
+              "type": "p",
+              "text": "GraceLab was created at the domain root with four child Organizational Units, and three departmental Organizational Units beneath Users. Protect object from accidental deletion was left enabled on each, which is the default."
+            },
+            {
+              "type": "code",
+              "text": "corp.gracelab.com\n└── GraceLab\n    ├── Users\n    │   ├── IT\n    │   ├── HR\n    │   └── Sales\n    ├── Workstations\n    ├── Groups\n    └── Disabled Users"
+            },
+            {
+              "type": "label",
+              "text": "PowerShell equivalent"
+            },
+            {
+              "type": "code",
+              "text": "$Corp = \"OU=GraceLab,DC=corp,DC=gracelab,DC=com\"\nNew-ADOrganizationalUnit -Name \"GraceLab\" -Path \"DC=corp,DC=gracelab,DC=com\"\n\"Users\",\"Workstations\",\"Groups\",\"Disabled Users\" | ForEach-Object {\n    New-ADOrganizationalUnit -Name $_ -Path $Corp\n}\n\"IT\",\"HR\",\"Sales\" | ForEach-Object {\n    New-ADOrganizationalUnit -Name $_ -Path \"OU=Users,$Corp\"\n}"
+            },
+            {
+              "type": "p",
+              "text": "The custom Users Organizational Unit and the default Users container coexist without conflict. They share a display name but differ in parent, distinguished name and object class."
+            },
+            {
+              "type": "subheading",
+              "text": "User accounts"
+            },
+            {
+              "type": "p",
+              "text": "Six accounts were created directly in their departmental Organizational Units, each requiring a password change at next logon. That is the same flag a help desk password reset sets, so provisioning and reset behave identically at the client."
+            },
+            {
+              "type": "label",
+              "text": "PowerShell equivalent"
+            },
+            {
+              "type": "code",
+              "text": "New-ADUser -Name \"Daniel Carter\" -GivenName \"Daniel\" -Surname \"Carter\" `\n    -SamAccountName \"dcarter\" -UserPrincipalName \"dcarter@corp.gracelab.com\" `\n    -Path \"OU=IT,OU=Users,OU=GraceLab,DC=corp,DC=gracelab,DC=com\" `\n    -AccountPassword (Read-Host -AsSecureString \"Password\") `\n    -ChangePasswordAtLogon $true -Enabled $true"
+            },
+            {
+              "type": "p",
+              "text": "Read-Host -AsSecureString was used in place of a literal so that no password value reaches a transcript, a command history or a screenshot. Each account carries three names: the common name shown in the tree, the sAMAccountName used for down-level logon, and the user principal name. A user reporting a fault gives the display name, a ticket gives the sAMAccountName, and the sign-in prompt accepts either the down-level or the user principal name form."
+            },
+            {
+              "type": "subheading",
+              "text": "Naming standard audit"
+            },
+            {
+              "type": "p",
+              "text": "A verification query was run after creation, scoped to the whole domain rather than to the new Organizational Units, so that an account created in the wrong place would still be returned."
+            },
+            {
+              "type": "code",
+              "text": "Get-ADUser -Filter * | Select-Object Name,SamAccountName,DistinguishedName |\n    Sort-Object DistinguishedName"
+            },
+            {
+              "type": "p",
+              "text": "The built-in Administrator, Guest and krbtgt accounts remained in the default Users container while all six created accounts sat beneath GraceLab. The query also found a defect: the sAMAccountName for Jason Brooks had been created as JBROOKS against a lowercase standard. The value is not case sensitive for authentication, so the account would have signed in without difficulty, but it appears in every subsequent report. It was corrected before any group or permission work began."
+            },
+            {
+              "type": "code",
+              "text": "Set-ADUser -Identity \"JBROOKS\" -SamAccountName \"jbrooks\" `\n    -UserPrincipalName \"jbrooks@corp.gracelab.com\""
+            },
+            {
+              "type": "p",
+              "text": "Changing the sAMAccountName does not change the common name, so the distinguished name remained CN=Jason Brooks,OU=HR,OU=Users,OU=GraceLab,DC=corp,DC=gracelab,DC=com."
+            },
+            {
+              "type": "subheading",
+              "text": "Accidental deletion protection"
+            },
+            {
+              "type": "p",
+              "text": "A temporary Organizational Unit named TEMP-DeleteTest was created and a deletion deliberately attempted against it. A disposable object was used rather than a live Organizational Unit, because deleting one removes every object beneath it. Active Directory refused:"
+            },
+            {
+              "type": "code",
+              "text": "You do not have sufficient privileges to delete TEMP-DeleteTest,\nor this object is protected from accidental deletion."
+            },
+            {
+              "type": "p",
+              "text": "The message names two possible causes and gives no way to distinguish them. It also leads with the privileges explanation, which was not the cause, since the operation was performed as a member of Domain Admins. Diagnosis depended on inspecting the object rather than reading the error."
+            },
+            {
+              "type": "p",
+              "text": "The Object tab confirmed the protection flag was set. Under the Advanced view of the Security tab the mechanism is visible: a Deny access control entry for Everyone on Delete and Delete Subtree. It is an access control entry rather than a console preference, which is why PowerShell enforces it identically."
+            },
+            {
+              "type": "label",
+              "text": "PowerShell equivalent"
+            },
+            {
+              "type": "code",
+              "text": "Set-ADOrganizationalUnit -Identity \"OU=TEMP-DeleteTest,OU=GraceLab,DC=corp,DC=gracelab,DC=com\" `\n    -ProtectedFromAccidentalDeletion $false\nRemove-ADOrganizationalUnit -Identity \"OU=TEMP-DeleteTest,OU=GraceLab,DC=corp,DC=gracelab,DC=com\" -Confirm:$false"
+            },
+            {
+              "type": "subheading",
+              "text": "Security groups and AGDLP nesting"
+            },
+            {
+              "type": "p",
+              "text": "Three global groups hold departmental membership and one domain local group holds the permission on the shared resource."
+            },
+            {
+              "type": "label",
+              "text": "PowerShell equivalent"
+            },
+            {
+              "type": "code",
+              "text": "$Groups = \"OU=Groups,OU=GraceLab,DC=corp,DC=gracelab,DC=com\"\n\"IT\",\"HR\",\"Sales\" | ForEach-Object {\n    New-ADGroup -Name \"GG_$_\" -GroupScope Global -GroupCategory Security -Path $Groups\n}\nNew-ADGroup -Name \"DL_SalesData_Modify\" -GroupScope DomainLocal -GroupCategory Security -Path $Groups\n\nAdd-ADGroupMember -Identity \"GG_IT\"    -Members dcarter,ochen\nAdd-ADGroupMember -Identity \"GG_HR\"    -Members smitchell,jbrooks\nAdd-ADGroupMember -Identity \"GG_Sales\" -Members mreed,npatel\nAdd-ADGroupMember -Identity \"DL_SalesData_Modify\" -Members \"GG_Sales\""
+            },
+            {
+              "type": "p",
+              "text": "Verification found a second defect. DL_SalesData_Modify had been created with Global scope, so the name asserted a scope the object did not hold and the intended chain was a global group nested inside another global group. The console had not revealed it, because its Type column was truncated to Security Group on every row."
+            },
+            {
+              "type": "p",
+              "text": "Active Directory does not permit a direct conversion from Global to Domain Local, because the two scopes impose incompatible membership rules. The conversion was performed through Universal, which satisfies both."
+            },
+            {
+              "type": "code",
+              "text": "Set-ADGroup -Identity \"DL_SalesData_Modify\" -GroupScope Universal\nSet-ADGroup -Identity \"DL_SalesData_Modify\" -GroupScope DomainLocal"
+            },
+            {
+              "type": "p",
+              "text": "The conversion was possible because the group contains a global group and is not itself a member of any other group. A group nested elsewhere would have blocked it."
+            },
+            {
+              "type": "subheading",
+              "text": "The resource and its NTFS permissions"
+            },
+            {
+              "type": "p",
+              "text": "A single shared folder was created so that the domain local group carries a real permission rather than existing as an unused object."
+            },
+            {
+              "type": "code",
+              "text": "New-Item -Path \"C:\\Shares\\SalesData\" -ItemType Directory\nNew-SmbShare -Name \"SalesData\" -Path \"C:\\Shares\\SalesData\" -FullAccess \"Authenticated Users\"\n\nicacls \"C:\\Shares\\SalesData\" /inheritance:d\nicacls \"C:\\Shares\\SalesData\" /remove:g \"BUILTIN\\Users\"\nicacls \"C:\\Shares\\SalesData\" /grant \"CORP\\DL_SalesData_Modify:(OI)(CI)(M)\""
+            },
+            {
+              "type": "note",
+              "text": "The second and third commands carry the exercise. A folder created beneath the system drive inherits a read and execute entry for BUILTIN\\Users, which every domain user holds through Authenticated Users. Granting Modify to the domain local group without first disabling inheritance and removing that entry would leave the folder readable by the whole domain, and the access control model would grant nothing that was not already there. Inherited entries cannot be removed while inheritance is enabled, so the flag is disabled first, which converts them to explicit entries."
+            },
+            {
+              "type": "p",
+              "text": "Share permissions were deliberately left open to Authenticated Users. Effective access is the more restrictive of the share permission and the NTFS permission, so NTFS carries the whole model and there is one place to look when access is wrong. Restricting both layers at once is a common cause of effective permissions nobody can account for. In production this share would not sit on a domain controller; it does here because the lab has one server."
+            },
+            {
+              "type": "subheading",
+              "text": "Workstation placement and redirection"
+            },
+            {
+              "type": "p",
+              "text": "CLIENT01 and CLIENT02 were placed in the default Computers container when they joined the domain in lab 06. Both objects were moved into the Workstations Organizational Unit."
+            },
+            {
+              "type": "code",
+              "text": "Get-ADComputer CLIENT01 | Move-ADObject -TargetPath \"OU=Workstations,OU=GraceLab,DC=corp,DC=gracelab,DC=com\"\nGet-ADComputer CLIENT02 | Move-ADObject -TargetPath \"OU=Workstations,OU=GraceLab,DC=corp,DC=gracelab,DC=com\""
+            },
+            {
+              "type": "p",
+              "text": "Moving existing objects has no effect on where future objects are created. Any subsequent domain join would still land in the Computers container, which cannot be a Group Policy link target, so the domain default was redirected."
+            },
+            {
+              "type": "code",
+              "text": "redircmp \"OU=Workstations,OU=GraceLab,DC=corp,DC=gracelab,DC=com\""
+            },
+            {
+              "type": "p",
+              "text": "The command returned Redirection was successful. It updates the wellKnownObjects attribute on the domain object, which is why the result is observable through Get-ADDomain rather than only in the tool that set it."
+            },
+            {
+              "type": "subheading",
+              "text": "RSAT on CLIENT01"
+            },
+            {
+              "type": "p",
+              "text": "External name resolution was tested from CLIENT01 before installing, because the Remote Server Administration Tools are a Feature on Demand retrieved from Windows Update and the installation fails without it."
+            },
+            {
+              "type": "code",
+              "text": "Resolve-DnsName microsoft.com\nAdd-WindowsCapability -Online -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0"
+            },
+            {
+              "type": "p",
+              "text": "The query returned A and AAAA records and no DNS forwarder was required. DC01 resolves external names through root hints by way of the VMware NAT gateway at 192.168.11.2, so the forwarder anticipated for this stage proved unnecessary. The installation returned Online: True and RestartNeeded: False."
+            },
+            {
+              "type": "p",
+              "text": "Active Directory Users and Computers was then opened on CLIENT01 and connected to the domain. It was launched from a session whose hostname output had already been confirmed as CLIENT01, so there was no ambiguity about which machine the console was running on. The two virtual machines present near identical consoles, and the title bar names the domain controller answering the query rather than the machine running the tool."
+            }
+          ]
+        },
+        {
+          "heading": "Documentation",
+          "blocks": [
+            {
+              "type": "subheading",
+              "text": "Containers and Organizational Units are not interchangeable"
+            },
+            {
+              "type": "p",
+              "text": "The default Users and Computers objects are containers. A container cannot be the target of a Group Policy link and cannot receive delegated administrative control, which is the reason for building a custom hierarchy at all. The Type column states the object class in plain text and is a more reliable check than the icon. DC01 was left in the built-in Domain Controllers Organizational Unit, which is already an Organizational Unit and carries the Default Domain Controllers Policy."
+            },
+            {
+              "type": "subheading",
+              "text": "The Disabled Users OU does not disable accounts"
+            },
+            {
+              "type": "p",
+              "text": "Moving an account into that Organizational Unit neither disables it nor prevents authentication. Disable-ADAccount is what stops an account from authenticating; the move is housekeeping performed afterwards."
+            },
+            {
+              "type": "p",
+              "text": "The offboarding sequence is therefore to disable the account, verify the sign-in refusal at the client, move the object, then verify the new distinguished name. Verification sits between the two actions rather than after both, so that the refusal is attributable to the disable rather than to the move."
+            },
+            {
+              "type": "subheading",
+              "text": "Naming standards need enforcing, not just defining"
+            },
+            {
+              "type": "p",
+              "text": "User sAMAccountName values use a lowercase first initial and surname with matching user principal names. Group names carry a scope prefix, GG_ for global groups holding accounts and DL_ for domain local groups holding permissions, so the access chain can be read from the names alone."
+            },
+            {
+              "type": "p",
+              "text": "The convention collides at scale. A second Olivia Chen, or an Oscar Chen, both resolve to ochen. It is sufficient at lab scale; at production scale the usual remedies are a numeric suffix or a firstname.lastname form."
+            },
+            {
+              "type": "note",
+              "text": "Two exceptions to the defined standards were found and corrected before dependent work continued: one sAMAccountName created in uppercase, and one group created with the wrong scope. Both were found because the build was verified rather than assumed complete, and neither was visible in the graphical console."
+            },
+            {
+              "type": "subheading",
+              "text": "AGDLP separates membership from permission"
+            },
+            {
+              "type": "p",
+              "text": "Permissions were not assigned to individual users. Accounts go into a global group representing a role, the global group is nested into a domain local group representing access to a resource, and the domain local group receives the access control entry."
+            },
+            {
+              "type": "code",
+              "text": "mreed, npatel  →  GG_Sales  →  DL_SalesData_Modify  →  Modify on C:\\Shares\\SalesData"
+            },
+            {
+              "type": "p",
+              "text": "Membership changes and permission changes then stay independent. A user moving into Sales is added to one group, and a change to what Sales may do on the folder alters one access control entry."
+            },
+            {
+              "type": "subheading",
+              "text": "Inherited permissions decide who is denied"
+            },
+            {
+              "type": "p",
+              "text": "Assigning a permission establishes who is granted access. It does not establish who is denied. Disabling inheritance and removing the inherited BUILTIN\\Users entry is what makes the denial real, and skipping it is the most common explanation for a departmental folder that everyone can open."
+            },
+            {
+              "type": "subheading",
+              "text": "Group membership is evaluated at sign-in"
+            },
+            {
+              "type": "p",
+              "text": "Group membership is written into the user access token at sign-in. Adding a user to a group has no effect on their access until they sign out and back in, when a new token is issued. This is a frequent misdiagnosis on permission tickets: the change is correct, the symptom persists, and the corrective action is a sign out rather than a further permission change."
+            },
+            {
+              "type": "subheading",
+              "text": "Moving objects and redirecting new objects are separate"
+            },
+            {
+              "type": "p",
+              "text": "Moving CLIENT01 and CLIENT02 organises two existing objects. Running redircmp changes where future domain joined computers are created, so new machines land in a Group Policy targetable Organizational Unit without manual intervention. The two operations address different problems and both are required."
+            },
+            {
+              "type": "p",
+              "text": "A computer object move takes effect immediately in the directory, but computer configuration policy is read at startup, so a Group Policy Object linked to the Workstations Organizational Unit does not apply to either client until it restarts or refreshes policy."
+            },
+            {
+              "type": "subheading",
+              "text": "Remote administration does not require console access to a DC"
+            },
+            {
+              "type": "p",
+              "text": "With RSAT installed on CLIENT01, the console runs on the workstation and queries DC01 over the network. The title bar reads DC01.corp.gracelab.com, which names the domain controller answering the query rather than the machine running the console, so the title alone does not establish where administration is happening."
+            },
+            {
+              "type": "p",
+              "text": "The account used here is a member of Domain Admins, which is appropriate for building an environment and not for routine help desk work. Delegating specific rights over specific Organizational Units, such as password resets confined to a departmental Organizational Unit, is the model this structure is built to support."
+            }
+          ]
+        },
+        {
+          "heading": "Verification",
+          "blocks": [
+            {
+              "type": "code",
+              "text": "Get-ADOrganizationalUnit -Filter * -SearchBase \"OU=GraceLab,DC=corp,DC=gracelab,DC=com\" |\n    Select-Object Name,DistinguishedName | Sort-Object DistinguishedName\n\nGet-ADUser -Filter * -SearchBase \"OU=Users,OU=GraceLab,DC=corp,DC=gracelab,DC=com\" `\n    -Properties UserPrincipalName | Select-Object Name,SamAccountName,UserPrincipalName\n\nGet-ADGroup -Filter * -SearchBase \"OU=Groups,OU=GraceLab,DC=corp,DC=gracelab,DC=com\" |\n    Select-Object Name,GroupScope,GroupCategory\n\nicacls \"C:\\Shares\\SalesData\"\n\nGet-ADComputer -Filter * | Select-Object Name,DistinguishedName\nGet-ADDomain | Select-Object ComputersContainer"
+            },
+            {
+              "type": "table",
+              "head": [
+                "Check",
+                "Expected",
+                "Result"
+              ],
+              "rows": [
+                [
+                  "Organizational Units beneath GraceLab",
+                  "8 including GraceLab",
+                  "8"
+                ],
+                [
+                  "User accounts in departmental OUs",
+                  "6, lowercase sAMAccountName",
+                  "6, consistent"
+                ],
+                [
+                  "GG_IT / GG_HR / GG_Sales",
+                  "Global, Security",
+                  "Global, Security"
+                ],
+                [
+                  "DL_SalesData_Modify",
+                  "DomainLocal, Security",
+                  "DomainLocal, Security"
+                ],
+                [
+                  "GG_Sales nested in DL_SalesData_Modify",
+                  "objectClass group",
+                  "group"
+                ],
+                [
+                  "SalesData ACL",
+                  "DL_SalesData_Modify (OI)(CI)(M)",
+                  "Present"
+                ],
+                [
+                  "SalesData ACL",
+                  "No BUILTIN\\Users entry",
+                  "Absent"
+                ],
+                [
+                  "CLIENT01 and CLIENT02",
+                  "OU=Workstations",
+                  "OU=Workstations"
+                ],
+                [
+                  "DC01",
+                  "OU=Domain Controllers",
+                  "OU=Domain Controllers"
+                ],
+                [
+                  "Domain ComputersContainer",
+                  "OU=Workstations",
+                  "OU=Workstations"
+                ],
+                [
+                  "RSAT on CLIENT01",
+                  "Installed",
+                  "Installed"
+                ]
+              ]
+            },
+            {
+              "type": "p",
+              "text": "Sorting Organizational Units by distinguished name orders them by position in the tree, because a distinguished name reads from the object outwards to the domain and siblings share a common suffix. The nesting row is the one worth reading twice: the domain local group returns a single member whose objectClass is group rather than user, which is the AGDLP relationship itself rather than an inference from the group name."
+            },
+            {
+              "type": "p",
+              "text": "Sales users reach the folder through the group chain. A user outside it, such as jbrooks, holds no entry at any level and is denied."
+            }
+          ]
+        },
+        {
+          "heading": "Evidence",
+          "blocks": [
+            {
+              "type": "img",
+              "src": "/images/labs/lab07-default-containers.png",
+              "caption": "The domain before any custom Organizational Unit existed. The Type column distinguishes the default containers from the Domain Controllers Organizational Unit and from the builtinDomain object."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab07-ou-structure-aduc.png",
+              "caption": "The completed hierarchy, with departmental Organizational Units beneath Users and separate Organizational Units for Workstations, Groups and Disabled Users."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab07-ou-structure-powershell.png",
+              "caption": "The same structure confirmed independently of the console, with the full distinguished name of each Organizational Unit."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab07-users-naming-before.png",
+              "caption": "The domain wide query showing the built-in accounts remaining in the Users container, all six created accounts beneath GraceLab, and the uppercase JBROOKS value against a lowercase standard."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab07-users-naming-after.png",
+              "caption": "All six accounts with consistent lowercase sAMAccountName values and matching user principal names after correction."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab07-ou-delete-refusal.png",
+              "caption": "The refusal returned by a deliberate deletion attempt against the protected TEMP-DeleteTest Organizational Unit, naming two possible causes without distinguishing between them."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab07-ou-protection-flag.png",
+              "caption": "The Object tab showing the enabled protection setting, which is the cause the dialog could not identify. The canonical name and object class are also visible."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab07-groups-agdlp.png",
+              "caption": "Scope and category for all four groups, departmental membership, and GG_Sales nested inside DL_SalesData_Modify with an objectClass of group."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab07-salesdata-ntfs.png",
+              "caption": "The access control list showing inheritable Modify permission for the domain local group and no entry for BUILTIN\\Users."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab07-computers-redirect.png",
+              "caption": "Both client computer objects in the Workstations Organizational Unit, DC01 remaining in Domain Controllers, and the domain default computer container redirected."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab07-client01-rsat-aduc.png",
+              "caption": "Active Directory Users and Computers running under RSAT on CLIENT01 and connected to DC01, with adjacent PowerShell output confirming the workstation identity."
+            }
+          ]
+        }
+      ]
     }
   ]
 }

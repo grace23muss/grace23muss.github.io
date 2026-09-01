@@ -193,6 +193,16 @@
         "effect": "fade-up",
         "duration": "500",
         "delay": "700"
+      },
+      {
+        "imgLink": "./images/portfolio/lab07.png",
+        "imgLinkLg": "./images/portfolio/lab07.png",
+        "href": "/labs/lab07",
+        "title": "OUs, Users, Groups & Remote Administration",
+        "subTitle": "corp.gracelab.com · AGDLP · RSAT",
+        "effect": "fade-up",
+        "duration": "500",
+        "delay": "800"
       }
     ]
   },
