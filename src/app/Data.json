@@ -203,6 +203,16 @@
         "effect": "fade-up",
         "duration": "500",
         "delay": "800"
+      },
+      {
+        "imgLink": "./images/portfolio/lab08.png",
+        "imgLinkLg": "./images/portfolio/lab08.png",
+        "href": "/labs/lab08",
+        "title": "Help Desk Ticket Lab",
+        "subTitle": "Reset · lockout · group membership · offboarding",
+        "effect": "fade-up",
+        "duration": "500",
+        "delay": "900"
       }
     ]
   },

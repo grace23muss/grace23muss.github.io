@@ -1761,6 +1761,657 @@
           ]
         }
       ]
+    },
+    {
+      "slug": "lab08",
+      "number": "08",
+      "title": "Help Desk Ticket Lab",
+      "subTitle": "Password reset · lockout · group membership · offboarding",
+      "date": "2 September 2026",
+      "status": "Completed",
+      "task": "Configure an account lockout policy for corp.gracelab.com, then work four help desk tickets end to end against the directory built in lab 07. Each ticket is diagnosed before any change is made, actioned from the workstation rather than the domain controller, and verified from the client side rather than from the directory alone.",
+      "config": [
+        {
+          "key": "Domain",
+          "value": "corp.gracelab.com"
+        },
+        {
+          "key": "Domain controller",
+          "value": "DC01 · 192.168.11.10"
+        },
+        {
+          "key": "Administered from",
+          "value": "CLIENT01 · 192.168.11.130, over RSAT"
+        },
+        {
+          "key": "Lockout threshold",
+          "value": "5 invalid logon attempts"
+        },
+        {
+          "key": "Lockout duration",
+          "value": "15 minutes"
+        },
+        {
+          "key": "Reset counter after",
+          "value": "15 minutes"
+        },
+        {
+          "key": "Administrator lockout",
+          "value": "Enabled"
+        },
+        {
+          "key": "Ticket 01",
+          "value": "Daniel Carter (dcarter), password reset"
+        },
+        {
+          "key": "Ticket 02",
+          "value": "Jason Brooks (jbrooks), account lockout"
+        },
+        {
+          "key": "Ticket 03",
+          "value": "Sarah Mitchell (smitchell), HR to Sales transfer"
+        },
+        {
+          "key": "Ticket 04",
+          "value": "Olivia Chen (ochen), offboarding"
+        },
+        {
+          "key": "Resource",
+          "value": "\\\\DC01\\SalesData, held by DL_SalesData_Modify"
+        }
+      ],
+      "sections": [
+        {
+          "heading": "Account lockout policy",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "The policy was configured first, so the lockout ticket would have a genuine cause rather than a simulated one. The domain state was recorded before any change."
+            },
+            {
+              "type": "code",
+              "text": "Get-ADDefaultDomainPasswordPolicy | Select-Object LockoutThreshold,LockoutDuration,\n    LockoutObservationWindow,MinPasswordLength,PasswordHistoryCount,MaxPasswordAge"
+            },
+            {
+              "type": "table",
+              "head": [
+                "Setting",
+                "Before",
+                "After"
+              ],
+              "rows": [
+                [
+                  "LockoutThreshold",
+                  "0",
+                  "5"
+                ],
+                [
+                  "LockoutDuration",
+                  "00:10:00",
+                  "00:15:00"
+                ],
+                [
+                  "LockoutObservationWindow",
+                  "00:10:00",
+                  "00:15:00"
+                ],
+                [
+                  "Allow Administrator lockout",
+                  "Not defined",
+                  "Enabled"
+                ]
+              ]
+            },
+            {
+              "type": "note",
+              "text": "A threshold of 0 means no account in the domain ever locks out, no matter how many incorrect passwords are entered. Both timers were already configured and completely inert, because nothing ever reached them. A configured value is not evidence of an active control, and reading the duration alone would have given the wrong answer about whether the domain enforced lockout at all."
+            },
+            {
+              "type": "p",
+              "text": "The settings were edited in the Default Domain Policy from the Group Policy Management Console on CLIENT01."
+            },
+            {
+              "type": "code",
+              "text": "Computer Configuration > Policies > Windows Settings > Security Settings\n  > Account Policies > Account Lockout Policy"
+            },
+            {
+              "type": "p",
+              "text": "Defining the threshold prompts Windows to suggest values for the other two, along with Allow Administrator account lockout set to Enabled. Windows will not permit a reset counter longer than the lockout duration, so raising the counter first prompted it to raise the duration to match."
+            },
+            {
+              "type": "p",
+              "text": "Allow Administrator account lockout was left enabled. The built-in Administrator historically could not be locked out, which meant it could be guessed against indefinitely. Enabling it closes that gap, at the cost that a mistyped administrative sign-in now counts towards the same threshold as anyone else."
+            },
+            {
+              "type": "code",
+              "text": "gpupdate /force"
+            },
+            {
+              "type": "p",
+              "text": "One preparatory step applied to all four subjects. Every account created in lab 07 carried the change-at-next-logon flag and had never been used, which leaves the password marked as expired. Each user was signed in once and taken through the forced change before their ticket began. Without that, the triage output would have reported an expired password on every account, which is a different fault with a different cause."
+            }
+          ]
+        },
+        {
+          "heading": "Ticket 01 — Password reset",
+          "blocks": [
+            {
+              "type": "subheading",
+              "text": "Issue"
+            },
+            {
+              "type": "p",
+              "text": "Daniel Carter cannot sign in to CLIENT01 and believes he has forgotten his password."
+            },
+            {
+              "type": "subheading",
+              "text": "Diagnosis"
+            },
+            {
+              "type": "p",
+              "text": "One query separates the four conditions that produce the same user complaint."
+            },
+            {
+              "type": "code",
+              "text": "Get-ADUser dcarter -Properties * |\n    fl Name,Enabled,LockedOut,PasswordExpired,PasswordLastSet,BadLogonCount,LastLogonDate"
+            },
+            {
+              "type": "table",
+              "head": [
+                "Field",
+                "Result",
+                "Rules out"
+              ],
+              "rows": [
+                [
+                  "Enabled",
+                  "True",
+                  "Account disabled"
+                ],
+                [
+                  "LockedOut",
+                  "False",
+                  "Account locked"
+                ],
+                [
+                  "PasswordExpired",
+                  "False",
+                  "Expired password"
+                ],
+                [
+                  "BadLogonCount",
+                  "0",
+                  "Repeated failed attempts"
+                ]
+              ]
+            },
+            {
+              "type": "p",
+              "text": "Everything else ruled out, a forgotten password is the remaining explanation. Naming what was excluded is what makes this a diagnosis rather than an assumption."
+            },
+            {
+              "type": "subheading",
+              "text": "Action"
+            },
+            {
+              "type": "p",
+              "text": "Reset from Active Directory Users and Computers on CLIENT01, with User must change password at next logon selected."
+            },
+            {
+              "type": "label",
+              "text": "PowerShell equivalent"
+            },
+            {
+              "type": "code",
+              "text": "Set-ADAccountPassword -Identity dcarter -Reset -NewPassword (Read-Host -AsSecureString \"New password\")\nSet-ADUser -Identity dcarter -ChangePasswordAtLogon $true"
+            },
+            {
+              "type": "p",
+              "text": "Read-Host -AsSecureString is used instead of a literal so no password value reaches a transcript, a command history or a screenshot."
+            },
+            {
+              "type": "subheading",
+              "text": "Verification"
+            },
+            {
+              "type": "p",
+              "text": "The account signed in on CLIENT01 with the temporary password, was forced through a change, and reached the desktop. Identity and machine confirmed in that session."
+            },
+            {
+              "type": "code",
+              "text": "whoami\nhostname"
+            },
+            {
+              "type": "subheading",
+              "text": "Closure"
+            },
+            {
+              "type": "p",
+              "text": "Password reset and the account confirmed working from the client. Because the change-at-next-logon flag was set, the temporary password was valid for a single sign-in and the working password is known only to the user. The technician never holds a credential that can be reused."
+            }
+          ]
+        },
+        {
+          "heading": "Ticket 02 — Account lockout",
+          "blocks": [
+            {
+              "type": "subheading",
+              "text": "Issue"
+            },
+            {
+              "type": "p",
+              "text": "Jason Brooks reports that repeated sign-in attempts have stopped working and the message on screen has changed."
+            },
+            {
+              "type": "subheading",
+              "text": "Diagnosis"
+            },
+            {
+              "type": "p",
+              "text": "The fault was staged by entering an incorrect password five times at the CLIENT01 sign-in screen. Two separate mechanisms were visible. After several consecutive failures Windows began inserting an escalating delay, reporting invalid credentials and delaying the next attempt: a local rate limit that exists independently of any domain policy. On the fifth failure the wording changed to state the account was locked out, which is the domain policy taking effect."
+            },
+            {
+              "type": "code",
+              "text": "Get-ADUser jbrooks -Properties * |\n    fl Name,Enabled,LockedOut,PasswordExpired,BadLogonCount,LastBadPasswordAttempt,AccountLockoutTime\n\nSearch-ADAccount -LockedOut | Select-Object Name,SamAccountName,LastLogonDate"
+            },
+            {
+              "type": "p",
+              "text": "LockedOut True with a BadLogonCount of exactly 5, matching the configured threshold, and LastBadPasswordAttempt identical to AccountLockoutTime, showing the fifth failure was both the last attempt and the moment of lockout. Enabled stayed True throughout."
+            },
+            {
+              "type": "p",
+              "text": "Search-ADAccount is the command used when several users call at once, because it returns every locked account in the domain without needing a name in advance."
+            },
+            {
+              "type": "subheading",
+              "text": "Action"
+            },
+            {
+              "type": "code",
+              "text": "Unlock-ADAccount -Identity jbrooks"
+            },
+            {
+              "type": "subheading",
+              "text": "Verification"
+            },
+            {
+              "type": "p",
+              "text": "The account signed in on CLIENT01 with its existing password. The same query then returned LockedOut False, AccountLockoutTime empty and BadLogonCount reset to 0."
+            },
+            {
+              "type": "note",
+              "text": "LastBadPasswordAttempt keeps its timestamp after a successful sign-in. That is correct: it is a historical record of the last failure, not a live counter, and it persisting is not evidence of an ongoing problem."
+            },
+            {
+              "type": "subheading",
+              "text": "Closure"
+            },
+            {
+              "type": "p",
+              "text": "Account unlocked and confirmed working. No password was changed at any point, which is the distinction between this ticket and the previous one. A locked account and a forgotten password produce the same complaint and require different actions."
+            }
+          ]
+        },
+        {
+          "heading": "Ticket 03 — Group membership, HR to Sales transfer",
+          "blocks": [
+            {
+              "type": "subheading",
+              "text": "Issue"
+            },
+            {
+              "type": "p",
+              "text": "Sarah Mitchell has transferred from HR to Sales and cannot open the Sales shared folder."
+            },
+            {
+              "type": "subheading",
+              "text": "Diagnosis"
+            },
+            {
+              "type": "p",
+              "text": "The fault was confirmed from her own session before anything changed. Browsing to the share returned a flat access denied rather than a credential prompt, which confirms she authenticated successfully and was then refused by the access control list rather than failing to connect."
+            },
+            {
+              "type": "code",
+              "text": "Get-ADPrincipalGroupMembership smitchell | ft Name,GroupScope\nGet-ADGroupMember DL_SalesData_Modify | ft Name,objectClass"
+            },
+            {
+              "type": "p",
+              "text": "She was in Domain Users and GG_HR only. The folder permission is held by the domain local group DL_SalesData_Modify, whose sole member is GG_Sales. She was outside the chain that carries access to that resource."
+            },
+            {
+              "type": "subheading",
+              "text": "Action"
+            },
+            {
+              "type": "code",
+              "text": "Add-ADGroupMember GG_Sales -Members smitchell\nRemove-ADGroupMember GG_HR -Members smitchell -Confirm:$false\nGet-ADUser smitchell | Move-ADObject -TargetPath \"OU=Sales,OU=Users,OU=GraceLab,DC=corp,DC=gracelab,DC=com\""
+            },
+            {
+              "type": "subheading",
+              "text": "Verification"
+            },
+            {
+              "type": "p",
+              "text": "The share was retried in her existing session without signing out. Access was still denied, with the directory now completely correct. Her access token had been built at sign-in and did not contain the new group."
+            },
+            {
+              "type": "p",
+              "text": "After signing out and back in, the token was inspected."
+            },
+            {
+              "type": "code",
+              "text": "whoami /groups"
+            },
+            {
+              "type": "p",
+              "text": "The token carried CORP\\GG_Sales and also CORP\\DL_SalesData_Modify, the second appearing through nesting despite her never being added to it directly. The share then opened, and a file was created inside it to confirm Modify rather than read access alone."
+            },
+            {
+              "type": "note",
+              "text": "A delete test was considered as further evidence and rejected. The folder grants CREATOR OWNER Full Control, so deleting a file she had just created would have succeeded through ownership rather than through the group, and would not have isolated the permission under test."
+            },
+            {
+              "type": "code",
+              "text": "Get-ADUser smitchell | fl Name,DistinguishedName\nGet-ADPrincipalGroupMembership smitchell | ft Name,GroupScope"
+            },
+            {
+              "type": "subheading",
+              "text": "Closure"
+            },
+            {
+              "type": "p",
+              "text": "Transfer completed and access verified by both reading and writing to the resource. The distinguished name ends in OU=Sales and membership is Domain Users and GG_Sales, with GG_HR removed. The user was told that a sign out and back in is required after any group change, which is the operative instruction rather than an optional suggestion."
+            }
+          ]
+        },
+        {
+          "heading": "Ticket 04 — Offboarding",
+          "blocks": [
+            {
+              "type": "subheading",
+              "text": "Issue"
+            },
+            {
+              "type": "p",
+              "text": "Olivia Chen is leaving the organisation. Access is to be removed the same day."
+            },
+            {
+              "type": "subheading",
+              "text": "Diagnosis"
+            },
+            {
+              "type": "p",
+              "text": "No fault to diagnose. The account was confirmed enabled and located in the IT Organizational Unit before any change, so the effect of the action could be attributed to the action."
+            },
+            {
+              "type": "subheading",
+              "text": "Action"
+            },
+            {
+              "type": "code",
+              "text": "Disable-ADAccount -Identity ochen"
+            },
+            {
+              "type": "subheading",
+              "text": "Verification"
+            },
+            {
+              "type": "p",
+              "text": "A sign-in was attempted on CLIENT01 immediately, before the object was moved. Windows refused with a message stating the account has been disabled. The object was then moved to the Disabled Users Organizational Unit and the final state confirmed."
+            },
+            {
+              "type": "code",
+              "text": "Get-ADUser ochen | fl Name,Enabled,DistinguishedName"
+            },
+            {
+              "type": "note",
+              "text": "The ordering was deliberate. Capturing the refusal before the move means it can only be attributed to Disable-ADAccount. Had the object been moved first, the evidence could not distinguish between the two actions, and a reader could reasonably conclude the Organizational Unit was responsible."
+            },
+            {
+              "type": "subheading",
+              "text": "Closure"
+            },
+            {
+              "type": "p",
+              "text": "Account disabled and relocated. The object was retained rather than deleted, because deleting it destroys the security identifier and with it file ownership, audit history and any record of what the account could reach. Group memberships were deliberately left in place: the account cannot authenticate, so they grant nothing, and they remain the record of what access existed. A complete runbook would additionally reset the password and hand off mailbox and data access before the object is archived."
+            }
+          ]
+        },
+        {
+          "heading": "Documentation",
+          "blocks": [
+            {
+              "type": "subheading",
+              "text": "Account policy applies at the domain level only"
+            },
+            {
+              "type": "p",
+              "text": "Account lockout and password settings affect domain accounts only when the Group Policy Object carrying them is linked at the domain. Linked to an Organizational Unit the same settings do nothing to the accounts inside it, because these values are read from the domain account database rather than applied to users individually. This is the most common mistake made with account policy."
+            },
+            {
+              "type": "p",
+              "text": "The consequence is that a domain has one lockout and password policy. Different requirements for a subset of users need a fine-grained password policy object applied to a group, not a second Group Policy Object."
+            },
+            {
+              "type": "subheading",
+              "text": "Three refusals, three different causes"
+            },
+            {
+              "type": "p",
+              "text": "A user reports all three the same way, as being unable to get in. The message on screen identifies the fault before any tool is opened."
+            },
+            {
+              "type": "table",
+              "head": [
+                "Message",
+                "Cause",
+                "Fix",
+                "Clears itself?"
+              ],
+              "rows": [
+                [
+                  "The password is incorrect",
+                  "Wrong password",
+                  "User retries, or reset",
+                  "n/a"
+                ],
+                [
+                  "The referenced account is currently locked out",
+                  "Threshold exceeded",
+                  "Unlock",
+                  "Yes, after the duration"
+                ],
+                [
+                  "Your account has been disabled",
+                  "Account disabled",
+                  "Re-enable, with approval",
+                  "No"
+                ]
+              ]
+            },
+            {
+              "type": "p",
+              "text": "The distinction matters for routing as much as for fixing. A lockout is a routine unlock. A disabled account usually means someone disabled it deliberately, and re-enabling it without asking why is how a leaver regains access."
+            },
+            {
+              "type": "subheading",
+              "text": "Group membership is read at sign-in, not continuously"
+            },
+            {
+              "type": "p",
+              "text": "Group membership is written into the user access token when the user authenticates. Adding a user to a group has no effect on an existing session, because that session holds a token built before the change existed."
+            },
+            {
+              "type": "p",
+              "text": "This produced the most useful result in the entry. With the group membership and the Organizational Unit both correct, the user was still denied, and nothing in Active Directory was wrong. The fault existed only in a token on one workstation. Signing out and back in issued a new token and access worked immediately."
+            },
+            {
+              "type": "p",
+              "text": "So \"I have added you to the group, please sign out and back in\" is not a formality. Skipping it produces a ticket that looks unresolved and invites a second, unnecessary permission change."
+            },
+            {
+              "type": "subheading",
+              "text": "Nested membership resolves into the token"
+            },
+            {
+              "type": "p",
+              "text": "The token also contained DL_SalesData_Modify, which the user was never added to directly. Windows expands nested membership during authentication, so the AGDLP chain built in lab 07 appears in the token as security identifiers rather than as a diagram. Reading whoami /groups is a direct way to confirm a nested permission model is actually resolving."
+            },
+            {
+              "type": "subheading",
+              "text": "Disabling, moving and deleting are three different things"
+            },
+            {
+              "type": "p",
+              "text": "Disable-ADAccount prevents authentication. Moving an object between Organizational Units changes where it sits and which policy applies to it, and has no effect on whether the account can sign in. Deleting removes the object and its security identifier permanently."
+            },
+            {
+              "type": "p",
+              "text": "An offboarding process that moves an account into a Disabled Users container without disabling it has removed nothing at all. The container name describes an intention, not a state."
+            },
+            {
+              "type": "subheading",
+              "text": "Evidence has to isolate the cause"
+            },
+            {
+              "type": "p",
+              "text": "Two decisions in this entry were about evidence rather than configuration. In the offboarding ticket the sign-in refusal was captured before the object was moved, so the refusal could only be attributed to the account being disabled. In the group membership ticket a delete test was rejected, because CREATOR OWNER Full Control meant the user would have been exercising ownership rather than the permission under test."
+            },
+            {
+              "type": "p",
+              "text": "Evidence that cannot exclude an alternative explanation is not evidence of the thing it claims to show."
+            }
+          ]
+        },
+        {
+          "heading": "Verification",
+          "blocks": [
+            {
+              "type": "code",
+              "text": "Get-ADDefaultDomainPasswordPolicy | Select-Object LockoutThreshold,LockoutDuration,LockoutObservationWindow\nGet-ADUser dcarter   -Properties * | fl Name,Enabled,LockedOut,PasswordLastSet\nGet-ADUser jbrooks   -Properties * | fl Name,Enabled,LockedOut,BadLogonCount\nGet-ADUser smitchell | fl Name,DistinguishedName\nGet-ADPrincipalGroupMembership smitchell | ft Name,GroupScope\nGet-ADUser ochen     | fl Name,Enabled,DistinguishedName"
+            },
+            {
+              "type": "table",
+              "head": [
+                "Check",
+                "Result"
+              ],
+              "rows": [
+                [
+                  "Lockout policy",
+                  "Threshold 5, both timers 15 minutes"
+                ],
+                [
+                  "dcarter",
+                  "Enabled, not locked, current PasswordLastSet, sign-in verified"
+                ],
+                [
+                  "jbrooks",
+                  "Enabled, not locked, BadLogonCount 0, password unchanged"
+                ],
+                [
+                  "smitchell",
+                  "OU=Sales, Domain Users and GG_Sales, GG_HR removed"
+                ],
+                [
+                  "smitchell access",
+                  "Read and write to \\\\DC01\\SalesData from her own session"
+                ],
+                [
+                  "ochen",
+                  "Disabled, sign-in refused, object in OU=Disabled Users"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "heading": "Evidence",
+          "blocks": [
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-lockout-policy-before.png",
+              "caption": "The domain default before any change. A lockout threshold of 0 means no account ever locks out, while both timers are already set and inert."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-lockout-policy-gpmc.png",
+              "caption": "The three settings and the Administrator lockout option in the Default Domain Policy. The root node identifies the policy as domain linked, which is what makes these settings effective."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-lockout-policy-after.png",
+              "caption": "The same query after the change and a policy refresh: threshold 5, both timers at 15 minutes."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-dcarter-triage.png",
+              "caption": "Enabled, not locked, password not expired, no bad logons. Every alternative cause ruled out before the password was touched."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-dcarter-signin.png",
+              "caption": "The account signed in on the workstation after the reset and forced password change, confirming identity and machine."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-jbrooks-lockout-signin.png",
+              "caption": "The message returned on the fifth incorrect password. The wording differs from an incorrect password and is the first indication of the actual fault."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-jbrooks-lockout-diagnosis.png",
+              "caption": "LockedOut True with BadLogonCount of exactly 5, matching the configured threshold, and the last bad attempt identical to the lockout time. Search-ADAccount returns every locked account in the domain."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-jbrooks-unlock-verified.png",
+              "caption": "After unlocking and a successful sign-in: not locked, lockout time cleared, bad logon count reset. The password was never changed."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-smitchell-denied.png",
+              "caption": "A flat refusal rather than a credential prompt, which confirms the user authenticated successfully and was then refused by the access control list."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-smitchell-diagnosis.png",
+              "caption": "The user in Domain Users and GG_HR only, alongside the domain local group whose sole member is GG_Sales."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-smitchell-still-denied.png",
+              "caption": "The identical refusal, with the directory now completely correct. The fault exists only in an access token built before the change."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-smitchell-token-groups.png",
+              "caption": "The new token carries CORP\\GG_Sales and also CORP\\DL_SalesData_Modify, the latter resolved through nesting rather than direct membership."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-smitchell-write-verified.png",
+              "caption": "A file created inside the share by the user, confirming Modify rather than read access alone."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-smitchell-transfer-verified.png",
+              "caption": "Both halves of the transfer in one output: the distinguished name in the Sales Organizational Unit, and membership of GG_Sales with GG_HR removed."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-ochen-disabled-signin.png",
+              "caption": "Captured before the object was moved, so the refusal is attributable to the account being disabled rather than to its location."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab08-ochen-disabled-moved.png",
+              "caption": "Enabled False with the distinguished name in the Disabled Users Organizational Unit. The object is retained rather than deleted."
+            }
+          ]
+        }
+      ]
     }
   ]
 }
