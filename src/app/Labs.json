@@ -2412,6 +2412,520 @@
           ]
         }
       ]
+    },
+    {
+      "slug": "lab09",
+      "number": "09",
+      "title": "Group Policy Drive Mapping",
+      "subTitle": "GPO scope · item-level targeting · gpresult",
+      "date": "8 September 2026",
+      "status": "Completed",
+      "task": "Deliver the SalesData share to the Sales department as a mapped drive through Group Policy Preferences, and take the same Group Policy Object through three deliberate scope states: linked to the wrong container, linked too widely, then targeted at the security group that already holds the NTFS permission. The entry documents Group Policy troubleshooting rather than Group Policy creation, so each state is diagnosed from the client before it is corrected.",
+      "config": [
+        {
+          "key": "Domain",
+          "value": "corp.gracelab.com"
+        },
+        {
+          "key": "Domain controller",
+          "value": "DC01 · 192.168.11.10"
+        },
+        {
+          "key": "Administered from",
+          "value": "CLIENT01 · 192.168.11.130, over RSAT"
+        },
+        {
+          "key": "Group Policy Object",
+          "value": "U_Sales_SalesData_DriveMap"
+        },
+        {
+          "key": "Setting path",
+          "value": "User Configuration > Preferences > Windows Settings > Drive Maps"
+        },
+        {
+          "key": "Mapped drive",
+          "value": "S: to \\\\DC01\\SalesData"
+        },
+        {
+          "key": "Preference item 01",
+          "value": "Update, targeted at CORP\\GG_Sales"
+        },
+        {
+          "key": "Preference item 02",
+          "value": "Delete, targeted at users not in CORP\\GG_Sales"
+        },
+        {
+          "key": "Share permission",
+          "value": "Authenticated Users, Full"
+        },
+        {
+          "key": "NTFS permission",
+          "value": "DL_SalesData_Modify, Modify, inheritance disabled"
+        },
+        {
+          "key": "Test accounts",
+          "value": "mreed (Sales), dcarter (IT), smitchell (transferred to Sales in lab 08)"
+        }
+      ],
+      "sections": [
+        {
+          "heading": "Pre-flight",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Both permission layers on the share were confirmed before any Group Policy work began. A mapped drive that behaves unexpectedly can be caused by the policy that delivers it or by the resource it points at, and separating those two possibilities in advance is cheaper than separating them mid-diagnosis."
+            },
+            {
+              "type": "code",
+              "text": "Get-SmbShare -Name \"SalesData\" | Format-List Name,Path,Description\nGet-SmbShareAccess -Name \"SalesData\"\nicacls \"C:\\Shares\\SalesData\""
+            },
+            {
+              "type": "table",
+              "head": [
+                "Layer",
+                "Result",
+                "Why it was checked"
+              ],
+              "rows": [
+                [
+                  "Share path",
+                  "C:\\Shares\\SalesData",
+                  "Confirms the share serves the folder audited in lab 07 and not another"
+                ],
+                [
+                  "Share ACL",
+                  "Authenticated Users, Full",
+                  "A share permission of Read would make the drive read-only regardless of NTFS"
+                ],
+                [
+                  "NTFS ACL",
+                  "DL_SalesData_Modify, Modify",
+                  "The permission the mapped drive is meant to expose"
+                ],
+                [
+                  "Inheritance",
+                  "Disabled, no inherited entries",
+                  "No (I) flag on any entry, so nothing flows down to grant access unintentionally"
+                ]
+              ]
+            },
+            {
+              "type": "note",
+              "text": "Where a share permission and an NTFS permission both apply, the more restrictive of the two wins. Full at the share layer with Modify on the file system produces effective Modify, which is the standard arrangement and leaves NTFS as the only control that matters. Had the share been left at Read, the later test where a Sales user receives the drive and cannot write to it would have pointed at group membership, and the actual cause would have been two layers away from where the investigation was looking."
+            }
+          ]
+        },
+        {
+          "heading": "Baseline",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Access to the resource was proven from the workstation before the Group Policy Object existed, so that any later absence of the drive could be attributed to policy rather than to permissions."
+            },
+            {
+              "type": "code",
+              "text": "whoami /groups | findstr /i \"Sales\"\nTest-Path \\\\DC01\\SalesData\nGet-PSDrive -PSProvider FileSystem | ft Name,Root\nnet use"
+            },
+            {
+              "type": "table",
+              "head": [
+                "Check",
+                "Result"
+              ],
+              "rows": [
+                [
+                  "Group membership",
+                  "CORP\\GG_Sales and CORP\\DL_SalesData_Modify present in the token"
+                ],
+                [
+                  "Resource reachable",
+                  "True"
+                ],
+                [
+                  "Mapped drives",
+                  "C: and D: only"
+                ],
+                [
+                  "Persistent connections",
+                  "None"
+                ]
+              ]
+            },
+            {
+              "type": "note",
+              "text": "The token lists GG_Sales with a type of Group and DL_SalesData_Modify with a type of Alias carrying the Local Group attribute, which is how a domain local group appears once it has been resolved into an access token. The user was never added to the domain local group directly. It arrives through the global group nested inside it, which is the AGDLP chain built in lab 07 doing its work."
+            }
+          ]
+        },
+        {
+          "heading": "Phase 01 — Under-application",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "The Group Policy Object was created in the Group Policy Objects container rather than by right-clicking an Organizational Unit, because the latter creates and links in a single action. Keeping creation and linking separate makes the link an independent step that can be moved between phases without rebuilding the object."
+            },
+            {
+              "type": "code",
+              "text": "User Configuration > Preferences > Windows Settings > Drive Maps\n    New > Mapped Drive\n\n    Action .................. Update\n    Location ................ \\\\DC01\\SalesData\n    Reconnect ............... enabled\n    Label as ................ SalesData\n    Drive Letter ............ Use: S:\n    Connect as .............. left empty\n    Hide/Show this drive .... Show this drive"
+            },
+            {
+              "type": "subheading",
+              "text": "Two settings that are decisions rather than defaults"
+            },
+            {
+              "type": "p",
+              "text": "Update was chosen over Create because it creates the mapping when absent and refreshes its settings when present, which makes the item idempotent and self-correcting on every refresh. Create acts once and never corrects drift afterwards. Replace deletes and recreates the mapping at every refresh, which achieves the same end state at a higher cost."
+            },
+            {
+              "type": "p",
+              "text": "The Connect as fields were left empty. Populating them stores a credential inside the preference item, which lives as XML in SYSVOL where every authenticated user in the domain can read it. That is the weakness Microsoft addressed in MS14-025. Left empty, the drive maps in the security context of the user signing in, which is what allows the existing group and NTFS permissions to govern the result."
+            },
+            {
+              "type": "subheading",
+              "text": "The misconfiguration"
+            },
+            {
+              "type": "p",
+              "text": "The Group Policy Object was linked to the Workstations Organizational Unit, which holds the computer objects for CLIENT01 and CLIENT02. A Sales user then signed in to CLIENT01, forced a policy refresh, and signed in again."
+            },
+            {
+              "type": "code",
+              "text": "gpupdate /force\n\nGet-PSDrive -PSProvider FileSystem | ft Name,Root\ngpresult /r /scope:user"
+            },
+            {
+              "type": "p",
+              "text": "No S: drive appeared. The resultant set of policy for the user reported no applied Group Policy Objects at all, and the drive map policy was not listed anywhere in the output."
+            },
+            {
+              "type": "note",
+              "text": "The full sign out and sign in after the refresh was deliberate. A drive map is delivered at logon, and repeating the logon removes the possibility that the drive was merely waiting to process, which would otherwise be an available explanation for the absence."
+            }
+          ]
+        },
+        {
+          "heading": "Phase 02 — Over-application",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "The link was deleted from the Workstations Organizational Unit and created instead on the Users Organizational Unit, the parent of IT, HR and Sales. The Group Policy Object itself was untouched, and the confirmation dialog states explicitly that removing a link does not delete the object it points to."
+            },
+            {
+              "type": "p",
+              "text": "The same user signed in again and ran the same two commands. The drive appeared, and the drive map policy moved into the applied list. Every other line of the output was unchanged from the previous phase, which is what isolates the link location as the only variable."
+            },
+            {
+              "type": "code",
+              "text": "Get-PSDrive -Name S | ft Name,Root,DisplayRoot\nNew-Item -Path S:\\ -Name \"mreed_phase2.txt\" -ItemType File"
+            },
+            {
+              "type": "note",
+              "text": "Root reports S:\\ for a mapped drive and says nothing about where it points. DisplayRoot carries the UNC target, and without it a screenshot proves only that a drive letter exists. The file creation proves the Modify permission is real rather than assumed."
+            },
+            {
+              "type": "subheading",
+              "text": "The second fault, in the opposite direction"
+            },
+            {
+              "type": "p",
+              "text": "An IT user signed in to the same workstation and received the same drive, because the link now covers every user beneath the Users Organizational Unit. He holds no Sales group of any kind, so the file system refused him."
+            },
+            {
+              "type": "code",
+              "text": "whoami /groups | findstr /i \"Sales\"\nGet-ChildItem S:\\\n\nGet-ChildItem : Access to the path 'S:\\' is denied.\n    + CategoryInfo : PermissionDenied: (S:\\:String) [Get-ChildItem], UnauthorizedAccessException"
+            },
+            {
+              "type": "note",
+              "text": "The Group Policy Object is now working exactly as written and the configuration is still wrong. The file system is quietly absorbing a scope error, which is the failure mode that hides longest in production: nothing is broken enough to generate a ticket, and every user outside the intended audience carries a drive they cannot open."
+            }
+          ]
+        },
+        {
+          "heading": "Phase 03 — Item-level targeting",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Item-level targeting was added to the preference item on the Common tab, conditioned on membership of the global group that already feeds the NTFS permission. The group was selected through the object picker rather than typed, which stores its security identifier alongside its name so the condition resolves to the object itself and survives a rename."
+            },
+            {
+              "type": "code",
+              "text": "Common > Item-level targeting > Targeting...\n    New Item > Security Group\n    the user is a member of the security group CORP\\GG_Sales"
+            },
+            {
+              "type": "p",
+              "text": "Targeting on the group rather than relinking the Group Policy Object to the Sales Organizational Unit was a deliberate choice. It binds delivery of the drive to the same group that grants access to its contents, so membership becomes the single control governing both."
+            },
+            {
+              "type": "subheading",
+              "text": "Targeting filters the item, not the object"
+            },
+            {
+              "type": "p",
+              "text": "After the change, the resultant set of policy for the IT user continued to list the Group Policy Object as applied. That is correct rather than contradictory. The object is in the user's scope and is processed; the preference item inside it is what the targeting condition excludes. The /r output reports at object granularity and cannot show item level results at all."
+            },
+            {
+              "type": "subheading",
+              "text": "Removing scope does not remove what was already delivered"
+            },
+            {
+              "type": "p",
+              "text": "The IT user still had the mapped drive. When a targeting condition evaluates false the preference item is skipped, and a skipped item removes nothing. Because Reconnect was enabled, the mapping had been written into his profile as a persistent connection and was restored at every logon independently of policy."
+            },
+            {
+              "type": "p",
+              "text": "A second preference item was added to close it, with the same group condition inverted through Item Options."
+            },
+            {
+              "type": "code",
+              "text": "New > Mapped Drive\n    Action .................. Delete\n    Drive Letter ............ Use: S:\n\nCommon > Item-level targeting > Targeting...\n    New Item > Security Group > Item Options > Is Not\n    the user is not a member of the security group CORP\\GG_Sales"
+            },
+            {
+              "type": "note",
+              "text": "The two conditions are mutually exclusive, so the order of the items does not matter. A member of the group processes the first item and skips the second; everyone else skips the first and processes the second. The policy now states both halves of its intent, that the drive exists for the group and does not exist for anyone else, rather than only the half that grants."
+            },
+            {
+              "type": "p",
+              "text": "On the next refresh and logon the stale mapping was removed with no manual intervention, and the failure changed from a permission refusal to a missing drive. The Sales user retained the drive throughout, confirming the delete item did not reach the audience it was never meant to."
+            }
+          ]
+        },
+        {
+          "heading": "Documentation",
+          "blocks": [
+            {
+              "type": "subheading",
+              "text": "User settings follow the user object"
+            },
+            {
+              "type": "p",
+              "text": "Settings under User Configuration are evaluated against the Organizational Unit path of the user account, and settings under Computer Configuration against the path of the computer account. Linking a user-side Group Policy Object to an Organizational Unit that contains only computers produces no error and no warning. The link is valid, the object is healthy, and it reaches nobody."
+            },
+            {
+              "type": "subheading",
+              "text": "Absent, filtered and applied are three different results"
+            },
+            {
+              "type": "p",
+              "text": "The resultant set of policy distinguishes states that are easy to read as one."
+            },
+            {
+              "type": "table",
+              "head": [
+                "State in gpresult",
+                "Meaning",
+                "What to check next"
+              ],
+              "rows": [
+                [
+                  "Listed under applied",
+                  "The object reached the user and was processed",
+                  "The settings inside it"
+                ],
+                [
+                  "Listed as filtered out",
+                  "The object reached the user and was rejected",
+                  "Security filtering, WMI filter, or an empty configuration side"
+                ],
+                [
+                  "Not listed at all",
+                  "The object was never in scope",
+                  "The link location against the user's distinguished name"
+                ]
+              ]
+            },
+            {
+              "type": "p",
+              "text": "A filtered entry states its reason. Not Applied (Empty) means the object carries no settings on that side, which is a different condition from Denied (Security). An object that appears in none of the three lists has not been rejected by anything, because nothing evaluated it."
+            },
+            {
+              "type": "subheading",
+              "text": "The file system is not a scoping tool"
+            },
+            {
+              "type": "p",
+              "text": "When the object was linked too widely, the users outside the intended audience were stopped by NTFS rather than by policy. Access control worked, and the configuration was still wrong. Relying on the file system to absorb a scope error leaves every one of those users carrying a broken drive letter, and it removes the signal that would otherwise reveal the misconfiguration."
+            },
+            {
+              "type": "subheading",
+              "text": "Group Policy read permission belongs to every authenticated user"
+            },
+            {
+              "type": "p",
+              "text": "A standard user account was able to open the Group Policy Management Console and inspect a Group Policy Object, while Edit, Rename and Import Settings were unavailable. Authenticated Users hold Read on Group Policy objects by default and nothing further. That same read permission is what allows gpresult to report a user's own resultant set of policy without elevation."
+            },
+            {
+              "type": "subheading",
+              "text": "The PowerShell equivalence is partial, and deliberately so"
+            },
+            {
+              "type": "p",
+              "text": "The Group Policy management surface is scriptable. The preference item is not."
+            },
+            {
+              "type": "code",
+              "text": "New-GPO -Name \"U_Sales_SalesData_DriveMap\"\nNew-GPLink -Name \"U_Sales_SalesData_DriveMap\" -Target \"OU=Users,OU=GraceLab,DC=corp,DC=gracelab,DC=com\"\nGet-GPInheritance -Target \"OU=Users,OU=GraceLab,DC=corp,DC=gracelab,DC=com\"\nGet-GPOReport -Name \"U_Sales_SalesData_DriveMap\" -ReportType Html -Path .\\gpo.html\nInvoke-GPUpdate -Computer CLIENT01 -Force"
+            },
+            {
+              "type": "note",
+              "text": "Group Policy Preferences are stored as XML files in SYSVOL and have no supported authoring cmdlet. The object, its links, its permissions, its reports and its refresh can all be driven from PowerShell; the drive map item itself was created in the console because there is no supported way to create it otherwise. Editing the XML directly is possible and is not a supported administrative method."
+            }
+          ]
+        },
+        {
+          "heading": "Verification",
+          "blocks": [
+            {
+              "type": "code",
+              "text": "Get-SmbShareAccess -Name SalesData\nicacls C:\\Shares\\SalesData\nGet-GPO -Name \"U_Sales_SalesData_DriveMap\" | fl DisplayName,Id,GpoStatus\nGet-GPInheritance -Target \"OU=Users,OU=GraceLab,DC=corp,DC=gracelab,DC=com\"\nGet-PSDrive -Name S | ft Name,Root,DisplayRoot\ngpresult /r /scope:user"
+            },
+            {
+              "type": "table",
+              "head": [
+                "Check",
+                "Result"
+              ],
+              "rows": [
+                [
+                  "Share and file system layers",
+                  "Authenticated Users Full over DL_SalesData_Modify Modify, effective Modify"
+                ],
+                [
+                  "Sales user, link on Workstations",
+                  "No drive, object absent from the applied list"
+                ],
+                [
+                  "Sales user, link on Users",
+                  "S: mapped to \\\\DC01\\SalesData, file creation succeeded"
+                ],
+                [
+                  "IT user, link on Users",
+                  "S: mapped, contents refused by NTFS"
+                ],
+                [
+                  "IT user, after targeting",
+                  "Object still listed as applied, drive removed by the delete item"
+                ],
+                [
+                  "Sales user, after targeting",
+                  "S: retained, contents readable and writable"
+                ],
+                [
+                  "Transferred user",
+                  "GG_Sales and DL_SalesData_Modify in token, S: mapped with no change to the policy"
+                ]
+              ]
+            },
+            {
+              "type": "note",
+              "text": "The user transferred from HR to Sales during lab 08 received the mapped drive on her next sign-in without any edit to the Group Policy Object. Because the targeting condition and the NTFS permission both hang off the same group, a single membership change moved both her access and her drive. That is the result the targeting decision was made for."
+            }
+          ]
+        },
+        {
+          "heading": "Evidence",
+          "blocks": [
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-mreed-baseline-no-drive.png",
+              "caption": "The baseline before any policy exists. Both Sales groups are present in the token, the share is reachable, and no S: drive is mapped by any means."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-gpmc-gracelab-nolinks.png",
+              "caption": "The GraceLab Organizational Unit tree with no Group Policy Object linked anywhere beneath it. Every link that appears later was placed deliberately."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-drivemap-preference-item.png",
+              "caption": "The drive map preference item. Action Update, the UNC location, Reconnect enabled, drive letter pinned to S:, and the Connect as fields left empty."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-link-workstations.png",
+              "caption": "The link placed on the Workstations Organizational Unit, which holds computer objects. The link is enabled and the object is healthy."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-mreed-nodrive-gpresult.png",
+              "caption": "The Sales user after a forced refresh and a full logon cycle. C: and D: only."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-mreed-gpresult-usersettings.png",
+              "caption": "The user's distinguished name places him under Sales, Users, GraceLab, far from the Organizational Unit the object is linked to. No Group Policy Objects were applied."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-mreed-gpresult-filtered.png",
+              "caption": "The filtered list names only the local policy and gives its reason as empty. The drive map object appears in no list at all, which is what identifies the fault as scope rather than filtering."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-link-users-ou.png",
+              "caption": "The link moved to the Users Organizational Unit, with the Workstations node expanded and now empty in the same frame."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-mreed-drive-mapped.png",
+              "caption": "The same user and the same command after the link moved. S: is present."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-mreed-gpresult-applied.png",
+              "caption": "The drive map object now listed under applied Group Policy Objects, with every other line of the output unchanged from the previous phase."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-mreed-drive-unc-target.png",
+              "caption": "DisplayRoot confirms the mapping targets the share rather than merely occupying the drive letter."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-dcarter-access-denied.png",
+              "caption": "The IT user with the same drive, no Sales group of any kind, and the contents refused. The policy is working and the scope is wrong."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-item-level-targeting.png",
+              "caption": "Item-level targeting on the global security group, selected through the object picker so the condition stores the group's security identifier."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-dcarter-stale-drive.png",
+              "caption": "The IT user after item-level targeting was added. The targeting condition excludes him and the drive he was already given remains, because a skipped preference item removes nothing and Reconnect had written the mapping into his profile as a persistent connection."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-dcarter-gpresult-still-applied.png",
+              "caption": "The IT user after targeting was added. The resultant set of policy continues to list the object under applied, because targeting excludes the preference item inside the object and the /r output reports only at object granularity."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-delete-item-targeting.png",
+              "caption": "The second preference item, with the same condition inverted through Item Options so it applies to everyone outside the group."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-drivemaps-both-items.png",
+              "caption": "The finished policy in one view. Two preference items on the same drive letter, one creating and one removing, both enabled, with the processing panel confirming targeting is attached and naming the group it depends on."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-dcarter-drive-removed.png",
+              "caption": "The IT user after the delete item. The failure has changed from a permission refusal to a missing drive, which is a different error with a different cause."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-mreed-drive-retained.png",
+              "caption": "The Sales user retains the drive and its contents, confirming the delete item did not reach the audience it was not meant for."
+            },
+            {
+              "type": "img",
+              "src": "/images/labs/lab09-smitchell-drive-inherited.png",
+              "caption": "The user transferred from HR to Sales during lab 08, holding both groups and receiving the mapped drive with no change made to the Group Policy Object."
+            }
+          ]
+        }
+      ]
     }
   ]
 }

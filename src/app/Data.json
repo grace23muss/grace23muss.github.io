@@ -213,6 +213,16 @@
         "effect": "fade-up",
         "duration": "500",
         "delay": "900"
+      },
+      {
+        "imgLink": "./images/portfolio/lab09.png",
+        "imgLinkLg": "./images/portfolio/lab09.png",
+        "href": "/labs/lab09",
+        "title": "Group Policy Drive Mapping",
+        "subTitle": "GPO scope · item-level targeting · gpresult",
+        "effect": "fade-up",
+        "duration": "500",
+        "delay": "1000"
       }
     ]
   },
